@@ -1,0 +1,29 @@
+{
+  "best_model": "Gradient Boosting",
+  "results": [
+    {
+      "name": "Logistic Regression",
+      "accuracy": 0.7381,
+      "precision": 0.5043,
+      "recall": 0.7861,
+      "f1": 0.6144,
+      "roc_auc": 0.8424
+    },
+    {
+      "name": "Random Forest",
+      "accuracy": 0.7622,
+      "precision": 0.5452,
+      "recall": 0.6283,
+      "f1": 0.5839,
+      "roc_auc": 0.8245
+    },
+    {
+      "name": "Gradient Boosting",
+      "accuracy": 0.797,
+      "precision": 0.656,
+      "recall": 0.4947,
+      "f1": 0.564,
+      "roc_auc": 0.8428
+    }
+  ]
+}
