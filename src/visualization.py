@@ -18,7 +18,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from sklearn.metrics import ConfusionMatrixDisplay, roc_curve, auc
+from sklearn.metrics import (
+    ConfusionMatrixDisplay,
+    auc,
+    precision_recall_curve,
+    roc_curve,
+)
 
 sns.set_theme(style="whitegrid")
 FIG_DIR = "reports/figures"
@@ -96,16 +101,117 @@ def plot_correlation_heatmap(df: pd.DataFrame):
     return path
 
 
-def plot_confusion_matrix(pipeline, X_test, y_test, model_name: str):
-    """Confusion matrix for the best model."""
+def plot_confusion_matrix(pipeline, X_test, y_test, model_name: str, threshold: float = 0.5):
+    """Confusion matrix for the best model at the tuned decision threshold."""
     _ensure_dir()
+    from sklearn.metrics import confusion_matrix
+
+    y_proba = pipeline.predict_proba(X_test)[:, 1]
+    y_pred = (y_proba >= threshold).astype(int)
+    cm = confusion_matrix(y_test, y_pred)
+
     fig, ax = plt.subplots(figsize=(5, 4))
-    ConfusionMatrixDisplay.from_estimator(
-        pipeline, X_test, y_test, display_labels=["Stay", "Churn"], cmap="Blues", ax=ax
+    ConfusionMatrixDisplay(cm, display_labels=["Stay", "Churn"]).plot(
+        cmap="Blues", ax=ax, colorbar=False
     )
-    ax.set_title(f"Confusion Matrix — {model_name}")
+    ax.set_title(f"Confusion Matrix — {model_name}\n(threshold = {threshold:.2f})")
     fig.tight_layout()
     path = os.path.join(FIG_DIR, "confusion_matrix.png")
+    fig.savefig(path, dpi=120)
+    plt.close(fig)
+    return path
+
+
+def plot_model_comparison(results):
+    """Grouped bar chart comparing all models across the key metrics.
+
+    `results` is a list of ModelResult dataclasses (or objects with the
+    matching attributes).
+    """
+    _ensure_dir()
+    names = [r.name for r in results]
+    metrics = {
+        "Accuracy": [r.accuracy for r in results],
+        "Precision": [r.precision for r in results],
+        "Recall": [r.recall for r in results],
+        "F1": [r.f1 for r in results],
+        "ROC-AUC": [r.roc_auc for r in results],
+    }
+    x = np.arange(len(names))
+    width = 0.15
+    palette = ["#4C72B0", "#DD8452", "#55A868", "#C44E52", "#8172B3"]
+
+    fig, ax = plt.subplots(figsize=(11, 6))
+    for i, (metric, vals) in enumerate(metrics.items()):
+        bars = ax.bar(x + (i - 2) * width, vals, width, label=metric, color=palette[i])
+        for b, v in zip(bars, vals):
+            ax.text(b.get_x() + b.get_width() / 2, v + 0.005, f"{v:.2f}",
+                    ha="center", va="bottom", fontsize=7)
+    ax.set_xticks(x)
+    ax.set_xticklabels(names, rotation=12)
+    ax.set_ylim(0, 1.05)
+    ax.set_ylabel("Score")
+    ax.set_title("Model Comparison — Test Set (metrics at tuned threshold)")
+    ax.legend(ncol=5, loc="upper center", bbox_to_anchor=(0.5, -0.08), frameon=False)
+    fig.tight_layout()
+    path = os.path.join(FIG_DIR, "model_comparison.png")
+    fig.savefig(path, dpi=120, bbox_inches="tight")
+    plt.close(fig)
+    return path
+
+
+def plot_precision_recall_curve(pipeline, X_test, y_test, model_name: str):
+    """Precision-recall curve — more informative than ROC under imbalance."""
+    _ensure_dir()
+    y_proba = pipeline.predict_proba(X_test)[:, 1]
+    precision, recall, _ = precision_recall_curve(y_test, y_proba)
+    baseline = float((y_test == 1).mean())
+
+    fig, ax = plt.subplots(figsize=(6, 5))
+    ax.plot(recall, precision, color="#8172B3", lw=2, label=model_name)
+    ax.axhline(baseline, color="grey", lw=1, linestyle="--",
+               label=f"No-skill ({baseline:.2f})")
+    ax.set_xlabel("Recall")
+    ax.set_ylabel("Precision")
+    ax.set_title(f"Precision-Recall Curve — {model_name}")
+    ax.legend(loc="upper right")
+    fig.tight_layout()
+    path = os.path.join(FIG_DIR, "precision_recall_curve.png")
+    fig.savefig(path, dpi=120)
+    plt.close(fig)
+    return path
+
+
+def plot_threshold_tuning(pipeline, X_test, y_test, chosen_threshold, model_name: str):
+    """Show precision, recall and F1 as a function of the decision threshold.
+
+    The vertical line marks the F1-optimal threshold selected on the train set.
+    """
+    _ensure_dir()
+    from sklearn.metrics import f1_score, precision_score, recall_score
+
+    y_proba = pipeline.predict_proba(X_test)[:, 1]
+    grid = np.linspace(0.05, 0.95, 91)
+    prec, rec, f1s = [], [], []
+    for t in grid:
+        pred = (y_proba >= t).astype(int)
+        prec.append(precision_score(y_test, pred, zero_division=0))
+        rec.append(recall_score(y_test, pred, zero_division=0))
+        f1s.append(f1_score(y_test, pred, zero_division=0))
+
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.plot(grid, prec, label="Precision", color="#4C72B0")
+    ax.plot(grid, rec, label="Recall", color="#DD8452")
+    ax.plot(grid, f1s, label="F1", color="#C44E52", lw=2)
+    ax.axvline(chosen_threshold, color="black", linestyle="--",
+               label=f"Chosen = {chosen_threshold:.2f}")
+    ax.axvline(0.5, color="grey", linestyle=":", label="Default = 0.50")
+    ax.set_xlabel("Decision threshold")
+    ax.set_ylabel("Score")
+    ax.set_title(f"Threshold Tuning — {model_name}")
+    ax.legend(loc="center right")
+    fig.tight_layout()
+    path = os.path.join(FIG_DIR, "threshold_tuning.png")
     fig.savefig(path, dpi=120)
     plt.close(fig)
     return path

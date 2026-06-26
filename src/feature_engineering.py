@@ -5,10 +5,16 @@ Feature engineering for the Telco Customer Churn project.
 
 This module:
 1. Creates a few interpretable, business-motivated derived features.
-2. Builds a scikit-learn ColumnTransformer that one-hot encodes categorical
-   features and scales numeric features. Wrapping preprocessing in a
-   ColumnTransformer keeps the pipeline leak-free (the scaler/encoder are fit
-   on training folds only) and makes the model easy to deploy.
+2. Builds a scikit-learn ColumnTransformer that imputes, one-hot encodes
+   categorical features and scales numeric features. Wrapping preprocessing in a
+   ColumnTransformer keeps the pipeline leak-free (imputers/scalers/encoders are
+   fit on training folds only) and makes the model trivial to deploy.
+
+Why a Pipeline + ColumnTransformer (interview talking point)
+------------------------------------------------------------
+All preprocessing is fit *only* on the training data inside each CV fold. This
+prevents data leakage (e.g. computing scaling statistics or imputation values
+using the test set) which would otherwise inflate the reported metrics.
 
 Author: Naveen
 """
@@ -17,6 +23,8 @@ from __future__ import annotations
 
 import pandas as pd
 from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
+from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 
@@ -32,6 +40,10 @@ def add_engineered_features(X: pd.DataFrame) -> pd.DataFrame:
       smooths out the noise in a single month's bill (guards against divide-by-zero
       for tenure == 0 customers).
     - has_streaming : 1 if the customer subscribes to streaming TV or movies.
+    - num_addon_services : count of optional protective/support add-ons the
+      customer subscribes to (online security, online backup, device protection,
+      tech support). Fewer add-ons => "stickier-but-unprotected" customers who
+      tend to churn more.
 
     Parameters
     ----------
@@ -61,6 +73,12 @@ def add_engineered_features(X: pd.DataFrame) -> pd.DataFrame:
     streaming_movies = X["StreamingMovies"] == "Yes"
     X["has_streaming"] = (streaming_tv | streaming_movies).astype(int)
 
+    # Count of optional protective add-on services.
+    addon_cols = ["OnlineSecurity", "OnlineBackup", "DeviceProtection", "TechSupport"]
+    present = [c for c in addon_cols if c in X.columns]
+    if present:
+        X["num_addon_services"] = (X[present] == "Yes").sum(axis=1)
+
     return X
 
 
@@ -78,7 +96,14 @@ def split_column_types(X: pd.DataFrame):
 
 
 def build_preprocessor(X: pd.DataFrame) -> ColumnTransformer:
-    """Build a ColumnTransformer that scales numerics and one-hot encodes categoricals.
+    """Build a ColumnTransformer with imputation + scaling + one-hot encoding.
+
+    Numeric branch:  median imputation -> standard scaling.
+    Categorical branch: most-frequent imputation -> one-hot encoding.
+
+    Median/most-frequent imputation makes the pipeline robust to unexpected
+    missing values at inference time (a production concern), even though the
+    cleaned training data has none left.
 
     Parameters
     ----------
@@ -92,14 +117,24 @@ def build_preprocessor(X: pd.DataFrame) -> ColumnTransformer:
     """
     numeric_cols, categorical_cols = split_column_types(X)
 
+    numeric_pipe = Pipeline(
+        steps=[
+            ("impute", SimpleImputer(strategy="median")),
+            ("scale", StandardScaler()),
+        ]
+    )
+
+    categorical_pipe = Pipeline(
+        steps=[
+            ("impute", SimpleImputer(strategy="most_frequent")),
+            ("encode", OneHotEncoder(handle_unknown="ignore", drop="first")),
+        ]
+    )
+
     preprocessor = ColumnTransformer(
         transformers=[
-            ("num", StandardScaler(), numeric_cols),
-            (
-                "cat",
-                OneHotEncoder(handle_unknown="ignore", drop="first"),
-                categorical_cols,
-            ),
+            ("num", numeric_pipe, numeric_cols),
+            ("cat", categorical_pipe, categorical_cols),
         ],
         remainder="drop",
     )

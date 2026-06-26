@@ -1,29 +1,97 @@
 {
   "best_model": "Gradient Boosting",
+  "best_threshold": 0.32,
+  "primary_metric": "roc_auc",
+  "cv_folds": 5,
   "results": [
     {
-      "name": "Logistic Regression",
-      "accuracy": 0.7381,
-      "precision": 0.5043,
-      "recall": 0.7861,
-      "f1": 0.6144,
-      "roc_auc": 0.8424
+      "name": "Gradient Boosting",
+      "accuracy": 0.7658,
+      "precision": 0.543,
+      "recall": 0.7433,
+      "f1": 0.6275,
+      "roc_auc": 0.8465,
+      "cv_roc_auc_mean": 0.849,
+      "cv_roc_auc_std": 0.0129,
+      "threshold": 0.32,
+      "tuned": true,
+      "best_params": {
+        "subsample": 0.9,
+        "n_estimators": 250,
+        "max_depth": 2,
+        "learning_rate": 0.05
+      }
+    },
+    {
+      "name": "LightGBM",
+      "accuracy": 0.7736,
+      "precision": 0.556,
+      "recall": 0.7299,
+      "f1": 0.6312,
+      "roc_auc": 0.8457,
+      "cv_roc_auc_mean": 0.8449,
+      "cv_roc_auc_std": 0.0088,
+      "threshold": 0.581,
+      "tuned": true,
+      "best_params": {
+        "subsample": 1.0,
+        "num_leaves": 15,
+        "n_estimators": 300,
+        "max_depth": 6,
+        "learning_rate": 0.02,
+        "colsample_bytree": 1.0
+      }
     },
     {
       "name": "Random Forest",
-      "accuracy": 0.7622,
-      "precision": 0.5452,
-      "recall": 0.6283,
-      "f1": 0.5839,
-      "roc_auc": 0.8245
+      "accuracy": 0.7736,
+      "precision": 0.556,
+      "recall": 0.7299,
+      "f1": 0.6312,
+      "roc_auc": 0.8445,
+      "cv_roc_auc_mean": 0.8469,
+      "cv_roc_auc_std": 0.0112,
+      "threshold": 0.569,
+      "tuned": true,
+      "best_params": {
+        "n_estimators": 400,
+        "min_samples_leaf": 4,
+        "max_features": "sqrt",
+        "max_depth": 8
+      }
     },
     {
-      "name": "Gradient Boosting",
-      "accuracy": 0.797,
-      "precision": 0.656,
-      "recall": 0.4947,
-      "f1": 0.564,
-      "roc_auc": 0.8428
+      "name": "XGBoost",
+      "accuracy": 0.7672,
+      "precision": 0.5469,
+      "recall": 0.7166,
+      "f1": 0.6204,
+      "roc_auc": 0.8428,
+      "cv_roc_auc_mean": 0.8451,
+      "cv_roc_auc_std": 0.0109,
+      "threshold": 0.57,
+      "tuned": true,
+      "best_params": {
+        "subsample": 0.7,
+        "n_estimators": 400,
+        "min_child_weight": 3,
+        "max_depth": 5,
+        "learning_rate": 0.02,
+        "colsample_bytree": 1.0
+      }
+    },
+    {
+      "name": "Logistic Regression",
+      "accuracy": 0.7779,
+      "precision": 0.5656,
+      "recall": 0.7032,
+      "f1": 0.6269,
+      "roc_auc": 0.8424,
+      "cv_roc_auc_mean": 0.846,
+      "cv_roc_auc_std": 0.0107,
+      "threshold": 0.607,
+      "tuned": false,
+      "best_params": {}
     }
   ]
 }
